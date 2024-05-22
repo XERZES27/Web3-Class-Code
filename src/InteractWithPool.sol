@@ -68,7 +68,7 @@ contract InteractFromPool {
         uint256 amountSupply = (amount * 9) / 10; // supply amount should have room for some gas
         IERC20(asset).approve(address(comet), amountSupply); //approval given to comet proxy for moving COMP
         comet.supplyTo(address(this), asset, amountSupply);
-        userMap[msg.sender].collateralBalance[asset] += amountSupply/1e18;
+        userMap[msg.sender].collateralBalance[asset] += amountSupply;
         userMap[msg.sender].suppliedCollaterAssets.push(asset);
     }
 
@@ -85,7 +85,7 @@ contract InteractFromPool {
     }
 
     function getPrice(address asset) public returns (uint256) {
-        return comet.getPrice(comet.getAssetInfoByAddress(asset).priceFeed) / 1e8;
+        return comet.getPrice(comet.getAssetInfoByAddress(asset).priceFeed);
     }
 
     function getBaseTokenPrice() public returns (uint256) {
@@ -96,20 +96,37 @@ contract InteractFromPool {
         return comet.getAssetInfoByAddress(asset).scale;
     }
 
-    function getValueOfAllCollateralizedAssets() public returns (uint256) {
+    function getValueOfAllCollateralizedAssetsE8() public returns (uint256) {
         uint256 valueOfCollateralizedAssets = 0;
+
         for (uint256 i = 0; i < userMap[msg.sender].suppliedCollaterAssets.length; i++) {
             address collateralizedAsset = userMap[msg.sender].suppliedCollaterAssets[i];
             valueOfCollateralizedAssets +=
                 getPrice(collateralizedAsset) * userMap[msg.sender].collateralBalance[collateralizedAsset];
         }
-        return valueOfCollateralizedAssets;
+        return valueOfCollateralizedAssets / 1e18;
     }
 
-    function getPercentageOfBorrowedAmountToCollateral() public returns (uint256) {
-        console.log(userMap[msg.sender].totalBorrowedAmount*getBaseTokenPrice());
-        console.log("totalBorrowedAmount");
-        return (userMap[msg.sender].totalBorrowedAmount*getBaseTokenPrice()) / comet.baseScale();
+    function getShareOfCollateralToPoolE18(address collateral) public returns (uint256) {
+        uint256 valueOfCollateralizedAssets = 0;
+        uint256 sizeOfCollateral = 0;
+
+        for (uint256 i = 0; i < userMap[msg.sender].suppliedCollaterAssets.length; i++) {
+            address collateralizedAsset = userMap[msg.sender].suppliedCollaterAssets[i];
+            uint256 valueOfCollateralizedAsset =
+                getPrice(collateralizedAsset) * userMap[msg.sender].collateralBalance[collateralizedAsset];
+
+            valueOfCollateralizedAssets += valueOfCollateralizedAsset;
+
+            if (collateral == collateralizedAsset) {
+                sizeOfCollateral = valueOfCollateralizedAsset;
+            }
+        }
+        return ((sizeOfCollateral * 1e20) / valueOfCollateralizedAssets);
+    }
+
+    function getPercentageOfBorrowedAmountToCollateralE8() public returns (uint256) {
+        return ((userMap[msg.sender].totalBorrowedAmount * 1e10) / getValueOfAllCollateralizedAssetsE8());
     }
 
     function BuyCollateral(address _asset, uint256 usdcAmount) public {

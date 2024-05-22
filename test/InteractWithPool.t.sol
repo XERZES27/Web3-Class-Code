@@ -61,12 +61,12 @@ contract CometTest is Test {
         deal(COMP, address(MainContract), 10e19);
         MainContract.supplyCollateral{value: 10e19}();
         assertEq(MainContract.getCollateralizedAmountByAsset(COMP), 10e19 - 1e18);
-        // deal(WETH, address(MainContract), 1000);
-        // MainContract.supplyCollateralByAsset{value: 1000}(WETH);
+        // deal(WETH, address(MainContract), 10e20);
+        // MainContract.supplyCollateralByAsset{value: 10e20}(WETH);
         // assertEq(MainContract.getCollateralizedAmountByAsset(WETH), (1000 * 9) / 10);
 
         //borrow supply
-        MainContract.BorrowAsset(USDCAddr, 10e4);
+        MainContract.BorrowAsset(USDCAddr, 1e8);
 
         // address[] memory collateralizedAssets = MainContract.getCollateralizedAssets();
         // console.log("=====collateralizedAssets=====");
@@ -75,10 +75,10 @@ contract CometTest is Test {
         // }
         // console.log("=====collateralizedAssets=====");
         console.log("=====ValueOfAllCollateralizedAssets=====");
-        console.log(MainContract.getValueOfAllCollateralizedAssets());
+        console.log(MainContract.getValueOfAllCollateralizedAssetsE8());
         console.log("=====ValueOfAllCollateralizedAssets=====");
         console.log("=====percentageOfBorrowedAmountToCollateral=====");
-        console.log(MainContract.getPercentageOfBorrowedAmountToCollateral());
+        console.log(MainContract.getPercentageOfBorrowedAmountToCollateralE8());
         console.log("=====percentageOfBorrowedAmountToCollateral=====");
     }
 
