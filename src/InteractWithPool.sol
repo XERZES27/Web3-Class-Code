@@ -11,12 +11,22 @@ interface IWETH is IERC20 {
     function deposit() external payable;
 }
 
+struct USER {
+    uint256 supply;
+    uint256 totalBorrowedAmount;
+    mapping(address collateralAsset => uint256 collateralizedAmmount) collateralBalance;
+    bool canBorrow;
+    uint256 allowedBorrowAmount;
+    address[] suppliedCollaterAssets;
+}
+
 contract InteractFromPool {
     CometRewards public rewards;
     CometInterface public comet;
     IERC20 public interfaceCOMP;
     address public constant USDCBase = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address public constant RewardsAddr = 0x8bF5b658bdF0388E8b482ED51B14aef58f90abfD;
+    mapping(address user => USER) userMap;
 
     constructor(address _assetAddress, address _cometProxy) {
         comet = CometInterface(_cometProxy);
@@ -30,15 +40,17 @@ contract InteractFromPool {
         // Supply collateral
         // uint256 eth1000=1000000000000000000000;
         uint256 amount = msg.value;
-        uint256 amountSupply = amount * 9 / 10; // supply amount should have room for some gas
+        uint256 amountSupply = amount - 1e18; // supply amount should have room for some gas
 
-        interfaceCOMP.approve(address(comet), amountSupply * 9 / 10); //approval given to comet proxy for moving COMP
+        interfaceCOMP.approve(address(comet), amountSupply); //approval given to comet proxy for moving COMP
 
         console.log("balance before supply");
         // console.log(comet.balanceOf(address(this)));
 
         console.log(IERC20(interfaceCOMP).balanceOf(address(this)));
-        comet.supplyTo(msg.sender, address(interfaceCOMP), amountSupply * 9 / 10);
+        comet.supplyTo(address(this), address(interfaceCOMP), amountSupply);
+        userMap[msg.sender].collateralBalance[address(interfaceCOMP)] += amountSupply;
+        userMap[msg.sender].suppliedCollaterAssets.push(address(interfaceCOMP));
         console.log("balance post supply");
         console.log(comet.collateralBalanceOf(msg.sender, address(interfaceCOMP)));
         console.log(IERC20(interfaceCOMP).balanceOf(address(this)));
@@ -47,6 +59,17 @@ contract InteractFromPool {
 
         // 100000000000
         // 90000000000
+    }
+
+    function supplyCollateralByAsset(address asset) external payable {
+        // Supply collateral
+        // uint256 eth1000=1000000000000000000000;
+        uint256 amount = msg.value;
+        uint256 amountSupply = (amount * 9) / 10; // supply amount should have room for some gas
+        IERC20(asset).approve(address(comet), amountSupply); //approval given to comet proxy for moving COMP
+        comet.supplyTo(address(this), asset, amountSupply);
+        userMap[msg.sender].collateralBalance[asset] += amountSupply/1e18;
+        userMap[msg.sender].suppliedCollaterAssets.push(asset);
     }
 
     function BalanceCheck() public returns (uint256) {
@@ -59,6 +82,34 @@ contract InteractFromPool {
 
     function isLiquidatable() public returns (bool) {
         return comet.isLiquidatable(msg.sender);
+    }
+
+    function getPrice(address asset) public returns (uint256) {
+        return comet.getPrice(comet.getAssetInfoByAddress(asset).priceFeed) / 1e8;
+    }
+
+    function getBaseTokenPrice() public returns (uint256) {
+        return comet.getPrice(comet.baseTokenPriceFeed()) / comet.baseScale();
+    }
+
+    function getAssetScale(address asset) public returns (uint64) {
+        return comet.getAssetInfoByAddress(asset).scale;
+    }
+
+    function getValueOfAllCollateralizedAssets() public returns (uint256) {
+        uint256 valueOfCollateralizedAssets = 0;
+        for (uint256 i = 0; i < userMap[msg.sender].suppliedCollaterAssets.length; i++) {
+            address collateralizedAsset = userMap[msg.sender].suppliedCollaterAssets[i];
+            valueOfCollateralizedAssets +=
+                getPrice(collateralizedAsset) * userMap[msg.sender].collateralBalance[collateralizedAsset];
+        }
+        return valueOfCollateralizedAssets;
+    }
+
+    function getPercentageOfBorrowedAmountToCollateral() public returns (uint256) {
+        console.log(userMap[msg.sender].totalBorrowedAmount*getBaseTokenPrice());
+        console.log("totalBorrowedAmount");
+        return (userMap[msg.sender].totalBorrowedAmount*getBaseTokenPrice()) / comet.baseScale();
     }
 
     function BuyCollateral(address _asset, uint256 usdcAmount) public {
@@ -82,14 +133,27 @@ contract InteractFromPool {
         //Borrow USDC from collateral provided in COMP during initialising
         // console.log(msg.sender);
         // console.log(IERC20(_asset).balanceOf(address(this))); // balance check for USDC = 0
-        console.log(comet.getCollateralReserves(_asset));
-        console.log(comet.isBorrowCollateralized(msg.sender));
+        // console.log(comet.getCollateralReserves(_asset));
+        // console.log(comet.isBorrowCollateralized(msg.sender));
         comet.withdrawTo(msg.sender, _asset, _amount); // withdrawing USDC based on COMP supplied as collateral
-        comet.borrowBalanceOf(msg.sender);
+        userMap[msg.sender].totalBorrowedAmount += _amount;
+        // comet.borrowBalanceOf(msg.sender);
 
         // IERC20(_asset).transfer(msg.sender, _amount);
 
         // console.log(IERC20(_asset).balanceOf(address(this))); // borrowed USDC updates the balance
+    }
+
+    function getCollateralizedAmountByAsset(address _asset) public view returns (uint256) {
+        return userMap[msg.sender].collateralBalance[_asset];
+    }
+
+    function getWithDrawedAmount(address _asset) public view returns (uint256) {
+        return userMap[msg.sender].totalBorrowedAmount;
+    }
+
+    function getCollateralizedAssets() public view returns (address[] memory) {
+        return userMap[msg.sender].suppliedCollaterAssets;
     }
 
     function getSuppleAPR() public returns (uint64) {
@@ -102,7 +166,7 @@ contract InteractFromPool {
         // console.log(util);
         uint64 borrowRate = comet.getBorrowRate(util);
         // console.log(borrowRate);
-        uint256 APR = borrowRate * 864 * 365 / 1e13;
+        uint256 APR = (borrowRate * 864 * 365) / 1e13;
         console.log("balance before accrual");
         console.log(IERC20(address(interfaceCOMP)).balanceOf(tx.origin));
         comet.accrueAccount(tx.origin);

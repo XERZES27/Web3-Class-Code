@@ -8,7 +8,7 @@ import "../src/DelegateCallHandler.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
-interface IFaucet{
+interface IFaucet {
     function drip(address token) external;
 }
 
@@ -26,7 +26,7 @@ contract CometScript is Script {
         MainContract =
             new InteractFromPool(COMP, 0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e, address(delegateCallHandler));
 
-        interfaceFaucet=IFaucet(0x68793eA49297eB75DFB4610B68e076D2A5c7646C);
+        interfaceFaucet = IFaucet(0x68793eA49297eB75DFB4610B68e076D2A5c7646C);
     }
 
     function run() public {
@@ -34,7 +34,7 @@ contract CometScript is Script {
         vm.startBroadcast(CompAccount);
 
         interfaceFaucet.drip(COMP);
-        uint256 balanceMain=IERC20(COMP).balanceOf(msg.sender);
+        uint256 balanceMain = IERC20(COMP).balanceOf(msg.sender);
         // deal(COMP,CompAccount,10e21);
 
         // MainContract.setFactory()
