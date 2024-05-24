@@ -36,6 +36,10 @@ contract InteractFromPool {
 
     receive() external payable {}
 
+    function getBaseToken() public view returns (address) {
+        return comet.baseToken();
+    }
+
     function supplyCollateral() external payable {
         // Supply collateral
         // uint256 eth1000=1000000000000000000000;
@@ -49,8 +53,10 @@ contract InteractFromPool {
 
         console.log(IERC20(interfaceCOMP).balanceOf(address(this)));
         comet.supplyTo(address(this), address(interfaceCOMP), amountSupply);
+        if(userMap[msg.sender].collateralBalance[address(interfaceCOMP)]==0){
+            userMap[msg.sender].suppliedCollaterAssets.push(address(interfaceCOMP));
+        }
         userMap[msg.sender].collateralBalance[address(interfaceCOMP)] += amountSupply;
-        userMap[msg.sender].suppliedCollaterAssets.push(address(interfaceCOMP));
         console.log("balance post supply");
         console.log(comet.collateralBalanceOf(msg.sender, address(interfaceCOMP)));
         console.log(IERC20(interfaceCOMP).balanceOf(address(this)));
@@ -68,8 +74,12 @@ contract InteractFromPool {
         uint256 amountSupply = (amount * 9) / 10; // supply amount should have room for some gas
         IERC20(asset).approve(address(comet), amountSupply); //approval given to comet proxy for moving COMP
         comet.supplyTo(address(this), asset, amountSupply);
+        if(userMap[msg.sender].collateralBalance[asset]==0){
+            userMap[msg.sender].suppliedCollaterAssets.push(asset);
+
+        }
         userMap[msg.sender].collateralBalance[asset] += amountSupply;
-        userMap[msg.sender].suppliedCollaterAssets.push(asset);
+        
     }
 
     function BalanceCheck() public returns (uint256) {
