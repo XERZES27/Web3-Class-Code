@@ -40,7 +40,7 @@ contract InteractFromPool {
         return comet.baseToken();
     }
 
-    function supplyCollateral() external payable {
+    function supplyCollateral() public payable {
         // Supply collateral
         // uint256 eth1000=1000000000000000000000;
         uint256 amount = msg.value;

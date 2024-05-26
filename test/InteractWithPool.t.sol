@@ -84,5 +84,3 @@ contract CometTest is Test {
 
     function run() public {}
 }
-//anvil --fork-url https://rpc.ankr.com/eth_sepolia/287fee8f199099ac482368d6765c7e03dbe94caa769b24d429d01e8c730de674
-//forge test --match-contract CometTest --fork-url http://127.0.0.1:8545 -vvvv
