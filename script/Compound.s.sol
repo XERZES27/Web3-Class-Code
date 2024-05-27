@@ -11,6 +11,28 @@ import {InteractFromPool} from "../src/InteractWithPool.sol";
 //     function drip(address token) external;
 // }
 
+interface IPool{
+    function supplyCollateral() external payable;
+    function getCollateralizedAssets() external view returns (address[] memory);
+    function  getCOMPBalance()external returns(uint256);
+    function getValueOfAllCollateralizedAssetsE8() external returns (uint256);
+}
+
+contract PoolScript is Script{
+    IPool public ipool;
+    function setUp()public{
+        ipool = IPool(0x48D1a5AD729a60Ab481cb61468474E36724eF33F);
+    }
+
+    function run()public{
+        // ipool.supplyCollateral{value:952153625602241377}();
+        console.log(ipool.getValueOfAllCollateralizedAssetsE8());
+        console.log(ipool.getCOMPBalance());
+        console.log(ipool.getValueOfAllCollateralizedAssetsE8());
+
+    }
+}
+
 contract CometScript is Script {
     address public constant USDCAddr =
         0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
@@ -29,7 +51,8 @@ contract CometScript is Script {
             COMP,
             0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e
         );
-        MainContract.supplyCollateral{value: 952153625602241377}();
+        // MainContract.supplyCollateral{value: 952153625602241377}();
+        console.log("getValueOfAllCollateralizedAssetsE8");
         console.log(MainContract.getValueOfAllCollateralizedAssetsE8());
         vm.stopBroadcast();
     }
