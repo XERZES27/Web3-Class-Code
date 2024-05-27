@@ -56,11 +56,16 @@ contract CometTest is Test {
     ///forge-config: default.invariant.runs = 2
     ///forge-config: default.invariant.depth = 2
 
+    function test_faucet()public{
+        
+    }
+
     function test_supplyCollateral() public {
         // -- snip --
         deal(COMP, address(MainContract), 10e19);
         MainContract.supplyCollateral{value: 10e19}();
         assertEq(MainContract.getCollateralizedAmountByAsset(COMP), 10e19 - 1e18);
+
         // deal(WETH, address(MainContract), 10e20);
         // MainContract.supplyCollateralByAsset{value: 10e20}(WETH);
         // assertEq(MainContract.getCollateralizedAmountByAsset(WETH), (1000 * 9) / 10);

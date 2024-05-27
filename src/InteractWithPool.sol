@@ -11,6 +11,8 @@ interface IWETH is IERC20 {
     function deposit() external payable;
 }
 
+
+
 struct USER {
     uint256 supply;
     uint256 totalBorrowedAmount;
@@ -19,11 +21,16 @@ struct USER {
     uint256 allowedBorrowAmount;
     address[] suppliedCollaterAssets;
 }
+interface IFaucet{
+    function drip(address token) external;
+}
 
 contract InteractFromPool {
     CometRewards public rewards;
     CometInterface public comet;
     IERC20 public interfaceCOMP;
+    IFaucet public ifaucet; 
+
     address public constant USDCBase = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address public constant RewardsAddr = 0x8bF5b658bdF0388E8b482ED51B14aef58f90abfD;
     mapping(address user => USER) userMap;
@@ -32,6 +39,8 @@ contract InteractFromPool {
         comet = CometInterface(_cometProxy);
         interfaceCOMP = IERC20(_assetAddress);
         rewards = CometRewards(RewardsAddr);
+        ifaucet =  IFaucet(0x68793eA49297eB75DFB4610B68e076D2A5c7646C);
+        ifaucet.drip(_assetAddress);
     }
 
     receive() external payable {}
@@ -44,16 +53,18 @@ contract InteractFromPool {
         // Supply collateral
         // uint256 eth1000=1000000000000000000000;
         uint256 amount = msg.value;
-        uint256 amountSupply = amount - 1e18; // supply amount should have room for some gas
+        uint256 amountSupply = amount; // supply amount should have room for some gas
 
         interfaceCOMP.approve(address(comet), amountSupply); //approval given to comet proxy for moving COMP
 
         console.log("balance before supply");
-        // console.log(comet.balanceOf(address(this)));
+        console.log(interfaceCOMP.balanceOf(msg.sender));
 
         console.log(IERC20(interfaceCOMP).balanceOf(address(this)));
         comet.supplyTo(address(this), address(interfaceCOMP), amountSupply);
         if(userMap[msg.sender].collateralBalance[address(interfaceCOMP)]==0){
+            console.log(userMap[msg.sender].collateralBalance[address(interfaceCOMP)]);
+            console.log("collateral balance in comp");
             userMap[msg.sender].suppliedCollaterAssets.push(address(interfaceCOMP));
         }
         userMap[msg.sender].collateralBalance[address(interfaceCOMP)] += amountSupply;
@@ -104,6 +115,11 @@ contract InteractFromPool {
 
     function getAssetScale(address asset) public returns (uint64) {
         return comet.getAssetInfoByAddress(asset).scale;
+    }
+
+    function getCOMPBalance()public returns(uint256){
+                return interfaceCOMP.balanceOf(address(this));
+
     }
 
     function getValueOfAllCollateralizedAssetsE8() public returns (uint256) {
