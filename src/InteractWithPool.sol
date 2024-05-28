@@ -26,12 +26,16 @@ interface IFaucet{
 }
 
 contract InteractFromPool {
+    address public constant COMP = 0xA6c8D1c55951e8AC44a0EaA959Be5Fd21cc07531;
+    address public constant WBTC = 0xa035b9e130F2B1AedC733eEFb1C67Ba4c503491F;
+    address public constant cbETH = 0xb9fa8F5eC3Da13B508F462243Ad0555B46E028df;
+    address public constant USDCBase = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+
+
+    IFaucet public ifaucet; 
     CometRewards public rewards;
     CometInterface public comet;
     IERC20 public interfaceCOMP;
-    IFaucet public ifaucet; 
-
-    address public constant USDCBase = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address public constant RewardsAddr = 0x8bF5b658bdF0388E8b482ED51B14aef58f90abfD;
     mapping(address user => USER) userMap;
 
@@ -40,42 +44,49 @@ contract InteractFromPool {
         interfaceCOMP = IERC20(_assetAddress);
         rewards = CometRewards(RewardsAddr);
         ifaucet =  IFaucet(0x68793eA49297eB75DFB4610B68e076D2A5c7646C);
-        ifaucet.drip(_assetAddress);
+        ifaucet.drip(COMP);
+        ifaucet.drip(WBTC);
+        ifaucet.drip(cbETH);
+        ifaucet.drip(USDCBase);
     }
 
     receive() external payable {}
+    fallback() external payable { 
+    }
+
+    function getSupportedTokens()public pure returns(address[4] memory){
+        address[4] memory supportedTokens = [COMP,WBTC,cbETH,USDCBase];
+        return supportedTokens ;
+    }
 
     function getBaseToken() public view returns (address) {
         return comet.baseToken();
     }
 
-    function supplyCollateral() public payable {
-        // Supply collateral
-        // uint256 eth1000=1000000000000000000000;
-        uint256 amount = msg.value;
-        uint256 amountSupply = amount; // supply amount should have room for some gas
+    //TODO write a function that converts native token to token the sender want's to supply
 
+
+
+    function supplyCollateral() external  payable {
+
+        uint256 amount = msg.value;
+        uint256 amountSupply = amount-1e18; // supply amount should have room for some gas
+        require(interfaceCOMP.balanceOf(address(comet))>amount,"not enough balance");
         interfaceCOMP.approve(address(comet), amountSupply); //approval given to comet proxy for moving COMP
 
         console.log("balance before supply");
-        console.log(interfaceCOMP.balanceOf(msg.sender));
+        // console.log(comet.balanceOf(address(this)));
 
         console.log(IERC20(interfaceCOMP).balanceOf(address(this)));
         comet.supplyTo(address(this), address(interfaceCOMP), amountSupply);
         if(userMap[msg.sender].collateralBalance[address(interfaceCOMP)]==0){
-            console.log(userMap[msg.sender].collateralBalance[address(interfaceCOMP)]);
-            console.log("collateral balance in comp");
             userMap[msg.sender].suppliedCollaterAssets.push(address(interfaceCOMP));
         }
         userMap[msg.sender].collateralBalance[address(interfaceCOMP)] += amountSupply;
         console.log("balance post supply");
         console.log(comet.collateralBalanceOf(msg.sender, address(interfaceCOMP)));
         console.log(IERC20(interfaceCOMP).balanceOf(address(this)));
-        // comet.collateralBalanceOf(, address(interfaceWETH));
-        //supply cometProxy with the wETH to increase collateral position
 
-        // 100000000000
-        // 90000000000
     }
 
     function supplyCollateralByAsset(address asset) external payable {
@@ -89,40 +100,38 @@ contract InteractFromPool {
             userMap[msg.sender].suppliedCollaterAssets.push(asset);
 
         }
-        userMap[msg.sender].collateralBalance[asset] += amountSupply;
-        
+        userMap[msg.sender].collateralBalance[asset] += amountSupply;  
     }
 
-    function BalanceCheck() public returns (uint256) {
+    function BalanceCheck()  public view returns (uint256) {
         return address(this).balance;
     }
 
-    function isBorrowAllowed() public returns (bool) {
+    function getCOMPBalance()public view returns (uint256){
+        return interfaceCOMP.balanceOf(address(this));
+    }
+
+    function isBorrowAllowed()  public view returns (bool) {
         return comet.isBorrowCollateralized(msg.sender);
     }
 
-    function isLiquidatable() public returns (bool) {
+    function isLiquidatable()  public view returns (bool) {
         return comet.isLiquidatable(msg.sender);
     }
 
-    function getPrice(address asset) public returns (uint256) {
+    function getPrice(address asset)   public view returns (uint256) {
         return comet.getPrice(comet.getAssetInfoByAddress(asset).priceFeed);
     }
 
-    function getBaseTokenPrice() public returns (uint256) {
+    function getBaseTokenPrice()  public view returns (uint256) {
         return comet.getPrice(comet.baseTokenPriceFeed()) / comet.baseScale();
     }
 
-    function getAssetScale(address asset) public returns (uint64) {
+    function getAssetScale(address asset)   public view returns (uint64) {
         return comet.getAssetInfoByAddress(asset).scale;
     }
 
-    function getCOMPBalance()public returns(uint256){
-                return interfaceCOMP.balanceOf(address(this));
-
-    }
-
-    function getValueOfAllCollateralizedAssetsE8() public returns (uint256) {
+    function getValueOfAllCollateralizedAssetsE8()  public view returns (uint256) {
         uint256 valueOfCollateralizedAssets = 0;
 
         for (uint256 i = 0; i < userMap[msg.sender].suppliedCollaterAssets.length; i++) {
@@ -133,7 +142,7 @@ contract InteractFromPool {
         return valueOfCollateralizedAssets / 1e18;
     }
 
-    function getShareOfCollateralToPoolE18(address collateral) public returns (uint256) {
+    function getShareOfCollateralToPoolE18(address collateral) public view returns (uint256) {
         uint256 valueOfCollateralizedAssets = 0;
         uint256 sizeOfCollateral = 0;
 
@@ -151,7 +160,7 @@ contract InteractFromPool {
         return ((sizeOfCollateral * 1e20) / valueOfCollateralizedAssets);
     }
 
-    function getPercentageOfBorrowedAmountToCollateralE8() public returns (uint256) {
+    function getPercentageOfBorrowedAmountToCollateralE8() public view returns (uint256) {
         return ((userMap[msg.sender].totalBorrowedAmount * 1e10) / getValueOfAllCollateralizedAssetsE8());
     }
 
@@ -191,7 +200,7 @@ contract InteractFromPool {
         return userMap[msg.sender].collateralBalance[_asset];
     }
 
-    function getWithDrawedAmount(address _asset) public view returns (uint256) {
+    function getWithDrawedAmount() public view returns (uint256) {
         return userMap[msg.sender].totalBorrowedAmount;
     }
 
@@ -199,7 +208,7 @@ contract InteractFromPool {
         return userMap[msg.sender].suppliedCollaterAssets;
     }
 
-    function getSuppleAPR() public returns (uint64) {
+    function getSuppleAPR() public view returns (uint64) {
         uint256 util = comet.getUtilization();
         return comet.getSupplyRate(util);
     }
@@ -224,3 +233,5 @@ contract InteractFromPool {
         return APR;
     }
 }
+
+

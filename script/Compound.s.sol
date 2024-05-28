@@ -11,25 +11,24 @@ import {InteractFromPool} from "../src/InteractWithPool.sol";
 //     function drip(address token) external;
 // }
 
-interface IPool{
+interface IPool {
     function supplyCollateral() external payable;
     function getCollateralizedAssets() external view returns (address[] memory);
-    function  getCOMPBalance()external returns(uint256);
+    function getCOMPBalance() external returns (uint256);
     function getValueOfAllCollateralizedAssetsE8() external returns (uint256);
 }
 
-contract PoolScript is Script{
+contract PoolScript is Script {
     IPool public ipool;
-    function setUp()public{
-        ipool = IPool(0x48D1a5AD729a60Ab481cb61468474E36724eF33F);
+    function setUp() public {
+        ipool = IPool(0xA495Dcf031463E1CcDD47f240a50aC89066Ca741);
     }
 
-    function run()public{
+    function run() public {
         // ipool.supplyCollateral{value:952153625602241377}();
         console.log(ipool.getValueOfAllCollateralizedAssetsE8());
         console.log(ipool.getCOMPBalance());
-        console.log(ipool.getValueOfAllCollateralizedAssetsE8());
-
+        // console.log(ipool.getCollateralizedAssets());
     }
 }
 
