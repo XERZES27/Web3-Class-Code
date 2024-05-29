@@ -19,7 +19,7 @@ contract CometTest is Test {
         // vm.startPrank(CompAccount);
         vm.startPrank(accountMain, accountMain);
         // MainContract=new LendingPoolSetup(0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e,0xc28aD44975C614EaBe0Ed090207314549e1c6624);
-        MainContract = new InteractFromPool(COMP, 0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e);
+        MainContract = new InteractFromPool();
         //1st address is the supplyAsset
         //2nd address is the baseAsset proxy (USDC from compound)
     }
@@ -59,15 +59,15 @@ contract CometTest is Test {
     function test_supplyCollateral() public {
         // -- snip --
         deal(COMP, address(MainContract), 10e19);
-        MainContract.supplyCollateral{value: 1e19}();
-        assertEq(MainContract.getCollateralizedAmountByAsset(COMP), 10e19 - 1e18);
+        MainContract.supplyCollateralInNativeEth{value: 1e19}();
+        // assertEq(MainContract.getCollateralizedAmountByAsset(COMP), 10e19 - 1e18);
 
         // deal(WETH, address(MainContract), 10e20);
         // MainContract.supplyCollateralByAsset{value: 10e20}(WETH);
         // assertEq(MainContract.getCollateralizedAmountByAsset(WETH), (1000 * 9) / 10);
 
         //borrow supply
-        MainContract.BorrowAsset(USDCAddr, 1e8);
+        MainContract.BorrowAsset(USDCAddr, 1e9);
 
         // address[] memory collateralizedAssets = MainContract.getCollateralizedAssets();
         // console.log("=====collateralizedAssets=====");

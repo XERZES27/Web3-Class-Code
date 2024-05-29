@@ -2,25 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "../compoundContracts/CometInterface.sol";
+import "./IWETH9.sol";
 import "../compoundContracts/CometRewards.sol";
 import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {console} from "forge-std/Test.sol";
 
-interface IWETH is IERC20 {
-    function withdraw(uint256) external;
-    function deposit() external payable;
-}
 
-
-
-struct USER {
-    uint256 supply;
-    uint256 totalBorrowedAmount;
-    mapping(address collateralAsset => uint256 collateralizedAmmount) collateralBalance;
-    bool canBorrow;
-    uint256 allowedBorrowAmount;
-    address[] suppliedCollaterAssets;
-}
 interface IFaucet{
     function drip(address token) external;
 }
@@ -30,77 +17,81 @@ contract InteractFromPool {
     address public constant WBTC = 0xa035b9e130F2B1AedC733eEFb1C67Ba4c503491F;
     address public constant cbETH = 0xb9fa8F5eC3Da13B508F462243Ad0555B46E028df;
     address public constant USDCBase = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
-
-
+    address public constant WETH = 0x2D5ee574e710219a521449679A4A7f2B43f046ad;
+    uint256 public constant MAX_COMP_SUPPLY = 20000000000000000000; // 20 COMP
+    WETH9 public constant iWETH = WETH9(WETH);
     IFaucet public ifaucet; 
     CometRewards public rewards;
     CometInterface public comet;
     IERC20 public interfaceCOMP;
+    string[5] supportedTokens = ["COMP","WBTC","cbETH","USDCBase","WETH"];
     address public constant RewardsAddr = 0x8bF5b658bdF0388E8b482ED51B14aef58f90abfD;
-    mapping(address user => USER) userMap;
+    address public constant COMETPROXY = 0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e;
+    
+    mapping(address user => USER) public userMap;
+    mapping( string name=>address token) public tokenNameMap;
 
-    constructor(address _assetAddress, address _cometProxy) {
-        comet = CometInterface(_cometProxy);
-        interfaceCOMP = IERC20(_assetAddress);
+    constructor() {
+        comet = CometInterface(COMETPROXY);
+        interfaceCOMP = IERC20(COMP);
         rewards = CometRewards(RewardsAddr);
         ifaucet =  IFaucet(0x68793eA49297eB75DFB4610B68e076D2A5c7646C);
         ifaucet.drip(COMP);
         ifaucet.drip(WBTC);
         ifaucet.drip(cbETH);
         ifaucet.drip(USDCBase);
+        tokenNameMap["COMP"]=COMP;
+        tokenNameMap["WBTC"]=WBTC;
+        tokenNameMap["cbETH"]=cbETH;
+        tokenNameMap["USDCBase"]=USDCBase;
+        tokenNameMap["USDCBase"]=WETH;
     }
 
     receive() external payable {}
     fallback() external payable { 
     }
 
-    function getSupportedTokens()public pure returns(address[4] memory){
-        address[4] memory supportedTokens = [COMP,WBTC,cbETH,USDCBase];
+
+
+    function getSupportedTokens()public view returns(string[5] memory){
         return supportedTokens ;
+    }
+
+    function getTokenAddress(string memory name)public view returns(address tokenAddress){
+        return tokenNameMap[name];
     }
 
     function getBaseToken() public view returns (address) {
         return comet.baseToken();
     }
 
-    //TODO write a function that converts native token to token the sender want's to supply
+    function getCOMPEquivalentToNativeETH(uint256 amount)public view  returns(uint256){
+        uint256 priceOfComp = getPrice(COMP);
+        uint256 priceOfWETH = getPrice(WETH);
+        return (priceOfWETH*amount*comet.baseScale())/priceOfComp;
+    }
 
+    function supplyCollateralInNativeEth() external  payable {
+        iWETH.deposit{value:msg.value}();
+        iWETH.approve(address(comet), msg.value); //approval given to comet proxy for moving WETH
 
-
-    function supplyCollateral() external  payable {
-
-        uint256 amount = msg.value;
-        uint256 amountSupply = amount-1e18; // supply amount should have room for some gas
-        require(interfaceCOMP.balanceOf(address(comet))>amount,"not enough balance");
-        interfaceCOMP.approve(address(comet), amountSupply); //approval given to comet proxy for moving COMP
-
-        console.log("balance before supply");
-        // console.log(comet.balanceOf(address(this)));
-
-        console.log(IERC20(interfaceCOMP).balanceOf(address(this)));
-        comet.supplyTo(address(this), address(interfaceCOMP), amountSupply);
-        if(userMap[msg.sender].collateralBalance[address(interfaceCOMP)]==0){
-            userMap[msg.sender].suppliedCollaterAssets.push(address(interfaceCOMP));
+        comet.supplyTo(address(this), address(iWETH), msg.value);
+        if(userMap[msg.sender].collateralBalance[address(iWETH)]==0){
+            userMap[msg.sender].suppliedCollaterAssets.push(address(iWETH));
         }
-        userMap[msg.sender].collateralBalance[address(interfaceCOMP)] += amountSupply;
-        console.log("balance post supply");
-        console.log(comet.collateralBalanceOf(msg.sender, address(interfaceCOMP)));
-        console.log(IERC20(interfaceCOMP).balanceOf(address(this)));
-
+        userMap[msg.sender].collateralBalance[address(iWETH)] += msg.value;
     }
 
     function supplyCollateralByAsset(address asset) external payable {
-        // Supply collateral
-        // uint256 eth1000=1000000000000000000000;
         uint256 amount = msg.value;
-        uint256 amountSupply = (amount * 9) / 10; // supply amount should have room for some gas
-        IERC20(asset).approve(address(comet), amountSupply); //approval given to comet proxy for moving COMP
-        comet.supplyTo(address(this), asset, amountSupply);
+        IERC20(asset).approve(address(comet), amount); 
+        comet.supplyTo(address(this), asset, amount);
         if(userMap[msg.sender].collateralBalance[asset]==0){
             userMap[msg.sender].suppliedCollaterAssets.push(asset);
 
         }
-        userMap[msg.sender].collateralBalance[asset] += amountSupply;  
+        userMap[msg.sender].collateralBalance[asset] += amount;
+        
     }
 
     function BalanceCheck()  public view returns (uint256) {
@@ -109,6 +100,9 @@ contract InteractFromPool {
 
     function getCOMPBalance()public view returns (uint256){
         return interfaceCOMP.balanceOf(address(this));
+    }
+    function getSupportedTokenBalance(string memory tokenName)public view returns (uint256){
+        return IERC20(tokenNameMap[tokenName]).balanceOf(address(this));
     }
 
     function isBorrowAllowed()  public view returns (bool) {
@@ -164,7 +158,7 @@ contract InteractFromPool {
         return ((userMap[msg.sender].totalBorrowedAmount * 1e10) / getValueOfAllCollateralizedAssetsE8());
     }
 
-    function BuyCollateral(address _asset, uint256 usdcAmount) public {
+    function BuyCollateral(address _asset) public {
         IERC20(USDCBase).transferFrom(tx.origin, address(this), 10e11);
         console.log(IERC20(USDCBase).balanceOf(address(this)));
         IERC20(USDCBase).approve(address(comet), 10e10);
@@ -233,5 +227,20 @@ contract InteractFromPool {
         return APR;
     }
 }
+
+interface IWETH is IERC20 {
+    function withdraw(uint256) external;
+    function deposit() external payable;
+}
+
+struct USER {
+    uint256 supply;
+    uint256 totalBorrowedAmount;
+    mapping(address collateralAsset => uint256 collateralizedAmmount) collateralBalance;
+    bool canBorrow;
+    uint256 allowedBorrowAmount;
+    address[] suppliedCollaterAssets;
+}
+
 
 

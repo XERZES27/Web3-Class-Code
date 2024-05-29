@@ -47,8 +47,7 @@ contract CometScript is Script {
         // ifaucet.drip(COMP);
         console.log(IERC20(COMP).balanceOf(msg.sender));
         MainContract = new InteractFromPool(
-            COMP,
-            0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e
+            
         );
         // MainContract.supplyCollateral{value: 952153625602241377}();
         console.log("getValueOfAllCollateralizedAssetsE8");
