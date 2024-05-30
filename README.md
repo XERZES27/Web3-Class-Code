@@ -29,7 +29,7 @@ $ forge build
 ### Test
 
 ```shell
-$ forge test
+$ forge test --match-contract CometTest --fork-url http://127.0.0.1:8545 -vvvv
 ```
 
 ### Format
@@ -47,13 +47,13 @@ $ forge snapshot
 ### Anvil
 
 ```shell
-$ anvil
+$ anvil --fork-url <your_ankr_rpc>
 ```
 
 ### Deploy
 
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ forge script script/Compound.s.sol:CometScript --rpc-url http://127.0.0.1:8545 --private-key <your_private_key> -vvvv --broadcast
 ```
 
 ### Cast
