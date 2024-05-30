@@ -5,6 +5,8 @@ import {Test, console} from "forge-std/Test.sol";
 import {LendingPoolSetup} from "../src/CompoundMain.sol";
 import {InteractFromPool} from "../src/InteractWithPool.sol";
 import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import "../compoundContracts/CometInterface.sol";
+
 
 // uint256 eth1000=1000000000000000000000;
 contract CometTest is Test {
@@ -17,7 +19,7 @@ contract CometTest is Test {
 
     function setUp() public {
         // vm.startPrank(CompAccount);
-        vm.startPrank(accountMain, accountMain);
+        // vm.startPrank(accountMain, accountMain);
         // MainContract=new LendingPoolSetup(0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e,0xc28aD44975C614EaBe0Ed090207314549e1c6624);
         MainContract = new InteractFromPool();
         //1st address is the supplyAsset
@@ -58,8 +60,16 @@ contract CometTest is Test {
 
     function test_supplyCollateral() public {
         // -- snip --
-        deal(COMP, address(MainContract), 10e19);
-        MainContract.supplyCollateralInNativeEth{value: 1e19}();
+        vm.startPrank(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
+
+        deal(USDCAddr, 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, 10e22);
+        CometInterface comet = CometInterface(0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e);
+        IERC20(USDCAddr).approve(address(comet),10e21);
+        comet.supply(USDCAddr,10e21);
+
+
+        vm.startPrank(0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc);
+        MainContract.supplyCollateralInNativeEth{value: 1e22}();
         // assertEq(MainContract.getCollateralizedAmountByAsset(COMP), 10e19 - 1e18);
 
         // deal(WETH, address(MainContract), 10e20);
@@ -67,7 +77,7 @@ contract CometTest is Test {
         // assertEq(MainContract.getCollateralizedAmountByAsset(WETH), (1000 * 9) / 10);
 
         //borrow supply
-        MainContract.BorrowAsset(USDCAddr, 1e9);
+        MainContract.BorrowAsset(USDCAddr, 305e11);
 
         // address[] memory collateralizedAssets = MainContract.getCollateralizedAssets();
         // console.log("=====collateralizedAssets=====");
@@ -79,7 +89,7 @@ contract CometTest is Test {
         console.log(MainContract.getValueOfAllCollateralizedAssetsE8());
         console.log("=====ValueOfAllCollateralizedAssets=====");
         console.log("=====percentageOfBorrowedAmountToCollateral=====");
-        console.log(MainContract.getPercentageOfBorrowedAmountToCollateralE8());
+        console.log(MainContract.getPercentageOfBorrowedAmountToCollateralE6());
         console.log("=====percentageOfBorrowedAmountToCollateral=====");
     }
 

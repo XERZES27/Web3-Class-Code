@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {Script, console} from "forge-std/Script.sol";
 // import {StdCheatsSafe} from "forge-std/StdCheats.sol";
 import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import "../compoundContracts/CometInterface.sol";
 
 import {InteractFromPool} from "../src/InteractWithPool.sol";
 
@@ -43,6 +44,15 @@ contract CometScript is Script {
     }
 
     function run() public {
+        // vm.startPrank(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
+
+        // deal(USDCAddr, 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, 10e22);
+        // CometInterface comet = CometInterface(0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e);
+        // IERC20(USDCAddr).approve(address(comet),10e21);
+        // comet.supply(USDCAddr,10e21);
+        // vm.stopPrank();
+
+
         vm.startBroadcast();
         // ifaucet.drip(COMP);
         console.log(IERC20(COMP).balanceOf(msg.sender));

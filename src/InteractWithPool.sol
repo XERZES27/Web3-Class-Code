@@ -44,7 +44,7 @@ contract InteractFromPool {
         tokenNameMap["WBTC"]=WBTC;
         tokenNameMap["cbETH"]=cbETH;
         tokenNameMap["USDCBase"]=USDCBase;
-        tokenNameMap["USDCBase"]=WETH;
+        tokenNameMap["WETH"]=WETH;
     }
 
     receive() external payable {}
@@ -82,8 +82,7 @@ contract InteractFromPool {
         userMap[msg.sender].collateralBalance[address(iWETH)] += msg.value;
     }
 
-    function supplyCollateralByAsset(address asset) external payable {
-        uint256 amount = msg.value;
+    function supplyCollateralByAsset(address asset,uint256 amount) external {
         IERC20(asset).approve(address(comet), amount); 
         comet.supplyTo(address(this), asset, amount);
         if(userMap[msg.sender].collateralBalance[asset]==0){
@@ -154,7 +153,7 @@ contract InteractFromPool {
         return ((sizeOfCollateral * 1e20) / valueOfCollateralizedAssets);
     }
 
-    function getPercentageOfBorrowedAmountToCollateralE8() public view returns (uint256) {
+    function getPercentageOfBorrowedAmountToCollateralE6() public view returns (uint256) {
         return ((userMap[msg.sender].totalBorrowedAmount * 1e10) / getValueOfAllCollateralizedAssetsE8());
     }
 
